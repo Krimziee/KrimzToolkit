@@ -251,6 +251,22 @@ Each tool keeps its own `.cmd` launcher and still works on its own.
   (161), followed new lines, stayed put while scrolled up (61 -> 161 lines arrived), followed again
   at the bottom, stayed open on the finish page, Copy put all 161 lines on the clipboard.
 
+## Windows Setup: Custom install rework (done, toolkit 0.2.0)
+
+- Custom install lists everything from both presets plus the optional extras. The chosen preset's
+  items (and its footer options) start ticked, so Custom with nothing changed runs exactly like
+  Normal install. Before, Custom only listed the chosen preset's items, all unticked, so Power
+  user's apps and settings could only be picked by switching presets.
+- Settings are grouped by kind (Look, Taskbar, Explorer, Gaming, Privacy, System, Region).
+- Recommended's apps moved from one "Essentials" group into the shared groups (Game launchers,
+  Everyday, Utilities), so they sit next to similar apps. What it installs is unchanged. The Power
+  user preset is unchanged.
+- An item picked from the other preset keeps its details (Spotify as normal user, Battle.net's
+  folder, Store apps); startup apps both presets keep are kept.
+- Tested: Custom unchanged = Normal install for both presets; Recommended + OneDrive, Camera, dark
+  mode, Jordan time zone, Spotify, Battle.net, WhatsApp, Afterburner, Google Drive in a dry run.
+- Toolkit version 0.2.0 (Phase 6 + this).
+
 ## Open questions
 
 - None right now. Tab order decided: Windows Setup, Crash Explainer, Connection Doctor,
