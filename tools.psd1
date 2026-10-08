@@ -5,8 +5,8 @@
 @{
     Tabs = @(
         @{ Key = 'WindowsSetup';     Title = 'Windows Setup';     Folder = 'WindowsSetup';     Phase = 1 }
-        @{ Key = 'SecureBoot';       Title = 'Secure Boot';       Folder = 'SecureBootCheck';  Phase = 2 }
         @{ Key = 'CrashExplainer';   Title = 'Crash Explainer';   Folder = 'CrashExplainer';   Phase = 3 }
         @{ Key = 'ConnectionDoctor'; Title = 'Connection Doctor'; Folder = 'ConnectionDoctor'; Phase = 4 }
+        @{ Key = 'SecureBoot';       Title = 'Secure Boot';       Folder = 'SecureBootCheck';  Phase = 2 }
     )
 }
