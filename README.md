@@ -3,9 +3,9 @@
 Four PC tools in one window, with a tab for each:
 
 - **Windows Setup**: sets up a fresh Windows install
-- **Secure Boot**: checks whether Secure Boot is on and ready (read-only)
 - **Crash Explainer**: explains crashes and blue screens in plain words (read-only)
 - **Connection Doctor**: watches your connection live and explains where lag comes from
+- **Secure Boot**: checks whether Secure Boot and TPM 2.0 are on and ready (read-only)
 
 ## How to start
 

@@ -8,7 +8,7 @@ Put the four tools in **one window, with a tab along the top for each tool**:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│  Krimz's Toolkit   Windows Setup │ Secure Boot │ Crash Explainer │ Connection Doctor │
+│  Krimz's Toolkit   Windows Setup │ Crash Explainer │ Connection Doctor │ Secure Boot │
 │               ━━━━━━━━━━━━━                                                    │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                     (the selected tool's page)                              │
@@ -118,18 +118,33 @@ Each tool keeps its own `.cmd` launcher and still works on its own.
 - Tested in dry run: page in the tab, confirmation dialog, run, working dot on and off,
   Cancel, finish page, and the standalone window in Custom mode.
 
-## Phase 2 - Secure Boot tab (new UI)
+## Phase 2 - Secure Boot tab (done)
 
-- Split the checks from the console output. The `Test-*` functions return results
-  and the console version and the page both draw from them, so the console script keeps working.
-- Page in the Windows Setup style:
-  - A verdict banner at the top (green / yellow / red) with a one-line summary.
-  - One card per section with a ✓ / ⚠ / ✗ icon: Your PC, Boot mode, Windows disk,
-    Secure Boot, Secure Boot keys, TPM 2.0, Drive encryption (BitLocker).
-  - Problems and warnings listed under the verdict.
-  - "How to get into your BIOS" help for the detected PC brand, plus data-safety notes.
-- Standalone `Check Secure Boot.cmd` opens the new window.
-- Still read-only.
+- **Checks split from the output.** Every check records what it found (`$script:Report`)
+  and, in the text version, also prints it. `Invoke-SecureBootCheck` runs them all and
+  returns the results, and both versions show those same results. The data-safety
+  advice and BIOS tips are now data too (`Get-DataSafety`, `Get-BiosAccess`).
+  `SecureBootCheck.ps1` still works on its own, so the online one-liner (`irm | iex`)
+  keeps working and shows the text version.
+- `-Window` opens the window and `-LoadOnly` only loads the checks.
+  `Check Secure Boot.cmd` now opens the window.
+- Page in the Windows Setup style (`ui\Page.xaml`, `modules\Ui.ps1`):
+  - Left: your PC, then one card per check with a ✓ / ⚠ / ✗ icon on every line.
+  - Right: verdict card (green ready / yellow ready with notes / red "N things to fix")
+    with "Secure Boot on/off" and "TPM 2.0 ready/not ready" chips. When something
+    is wrong, below it come "Before you change anything" (BitLocker, disk conversion),
+    "How to open the BIOS/UEFI setup" for the detected brand, then numbered step cards and the notes.
+  - Commands in the steps sit in code boxes the player can select and copy. **No button
+    runs anything**. The only button is "Check again".
+- The check runs in a background runspace (about 3.5 s on this PC), so the window never freezes.
+  Working dot on the tab while it runs. In the toolkit it starts the first time the tab
+  is opened.
+- Still read-only, and it now writes even less: the firmware-type read uses an in-memory
+  declaration instead of `Add-Type`, which wrote compiler temp files. Scanned the new code for
+  writes. The only hits are loading WPF and the existing admin prompt.
+- Tested: the real check in the standalone window and in the toolkit tab, a made-up "broken
+  PC" result (Legacy, MBR, BitLocker without a recovery key, TPM off) to see the fix layout,
+  and the text version.
 
 ## Phase 3 - Crash Explainer tab
 
@@ -152,4 +167,5 @@ Each tool keeps its own `.cmd` launcher and still works on its own.
 
 ## Open questions
 
-- Tab order (currently Windows Setup, Secure Boot, Crash Explainer, Connection Doctor).
+- None right now. Tab order decided: Windows Setup, Crash Explainer, Connection Doctor,
+  Secure Boot (last).
