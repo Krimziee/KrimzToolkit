@@ -173,8 +173,20 @@ function Add-ToolTab {
         $tab.Page = New-ErrorPage "$($Info.Title) couldn't open" $_.Exception.Message
     }
 
-    $tab.Page.Visibility = 'Collapsed'
-    [void]$script:Shell.Window.FindName('PageHost').Children.Add($tab.Page)
+    # Each page sits in a scroll area that only scrolls when the window is shorter than the
+    # page's MinHeight (small laptop screens). Otherwise the page gets exactly the visible
+    # height, so its own lists and graphs size and scroll as usual.
+    $frame = New-Object System.Windows.Controls.ScrollViewer -Property @{
+        VerticalScrollBarVisibility = 'Auto'; HorizontalScrollBarVisibility = 'Disabled'; Focusable = $false
+    }
+    $frame.Content = $tab.Page
+    $frame.Add_SizeChanged({
+        $page = $this.Content
+        $page.Height = [Math]::Max($this.ActualHeight, $page.MinHeight)
+    })
+    $frame.Visibility = 'Collapsed'
+    $tab.Frame = $frame
+    [void]$script:Shell.Window.FindName('PageHost').Children.Add($frame)
     [void]$script:Shell.Window.FindName('TabBar').Children.Add($button)
     $script:Shell.Tabs.Add($tab)
 
@@ -189,11 +201,11 @@ function Select-ToolTab {
     if ($previous -eq $next) { return }
 
     if ($previous) {
-        $previous.Page.Visibility = 'Collapsed'
+        $previous.Frame.Visibility = 'Collapsed'
         try { Invoke-PageFunction $previous 'Exit-ToolPage' } catch { Show-ShellError "$($previous.Info.Title): $($_.Exception.Message)" }
     }
     $script:Shell.Active = $next
-    $next.Page.Visibility = 'Visible'
+    $next.Frame.Visibility = 'Visible'
     if (-not $next.Button.IsChecked) { $next.Button.IsChecked = $true }
     try { Invoke-PageFunction $next 'Enter-ToolPage' } catch { Show-ShellError "$($next.Info.Title): $($_.Exception.Message)" }
 }

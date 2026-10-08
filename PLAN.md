@@ -182,12 +182,27 @@ Each tool keeps its own `.cmd` launcher and still works on its own.
   stays the same), resumes on return, a manual pause survives switching, DNS Test finishes while away
   with the dot on and off, all threads stop on close. Also the standalone window.
 
-## Phase 5 - Polish and test
+## Phase 5 - Polish and test (done)
 
-- Check every tab on a real PC: tab switching while each tool is busy, closing
-  mid-task, and window size at 1366×768 and at 1080p / 1440p.
-- Make sure all four standalone launchers still work.
-- README for the toolkit.
+- **Small screens:** each page sits in a scroll area that only scrolls when the window is
+  shorter than the page's `MinHeight` (set in each `Page.xaml`: Windows Setup 560, Crash
+  Explainer 520, Secure Boot 540, Connection Doctor 700). Otherwise the page gets exactly the
+  visible height, so its own lists and graphs behave as before. Tested at 1366×728 (a
+  1366×768 laptop's work area): only Connection Doctor scrolls (642 px visible, 700 needed).
+  At 1000 px tall, nothing scrolls.
+- **Network drives:** started from a mapped drive, `Toolkit.ps1` restarts with admin
+  rights using the network path (`\\server\share\...`), which the admin copy can see.
+- **Release step:** `Build-Release.ps1` puts the toolkit and the four tools into
+  `release\KrimzToolkit\` (tools under `tools\`) plus a zip. Each project is taken from its
+  last commit (`git archive`), and uncommitted changes are listed as a warning. The release
+  gets the toolkit's `Theme.xaml`, and tools whose own copy differs are listed. `release\`
+  is git-ignored. Tested: the release copy finds every tool in its own `tools\` folder.
+- **Stress test:** Secure Boot check, Crash Explainer reading, Connection Doctor monitor and a
+  Route Check all at once, 40 quick tab switches: no errors. Closing while the Route Check
+  ran took 80 ms, and all threads were stopped and the process exited.
+- README rewritten: tabs, working dot, admin and read-only rules, folders, release, dry run.
+- Still to do on a real PC: all four standalone launchers and the toolkit launcher from
+  the release folder, including the admin prompt (that can't be automated here).
 
 ## Open questions
 

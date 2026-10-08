@@ -2,27 +2,17 @@
 
 Four PC tools in one window, with a tab for each:
 
-- **Windows Setup**: sets up a fresh Windows install
+- **Windows Setup**: sets up a fresh Windows install. Asks for confirmation before it changes anything.
 - **Crash Explainer**: explains crashes and blue screens in plain words (read-only)
-- **Connection Doctor**: watches your connection live and explains where lag comes from
+- **Connection Doctor**: watches your connection live and explains where lag comes from (read-only)
 - **Secure Boot**: checks whether Secure Boot and TPM 2.0 are on and ready (read-only)
 
 ## How to start
 
 Double-click **Krimz's Toolkit.cmd** and click **Yes** on the admin prompt.
 
-The tools are found in the `tools` folder inside the toolkit, or next to the
-toolkit folder:
-
-```
-Krimz's Toolkit\    (this folder)
-WindowsSetup\
-SecureBootCheck\
-CrashExplainer\
-ConnectionDoctor\
-```
-
-Each tool still works on its own with its own launcher.
+A tool that's working in the background (setup running, logs being read, a test running) shows a
+small blue dot on its tab. Connection Doctor only measures while its tab is open.
 
 ## Shortcuts
 
@@ -32,9 +22,46 @@ Each tool still works on its own with its own launcher.
 ## Good to know
 
 - The toolkit runs with admin rights because Windows Setup and Secure Boot Check
-  need them. Each tool keeps its own rules: Secure Boot Check and Crash Explainer
-  only read, they never change anything.
-- The toolkit itself saves nothing: no settings, logs or temp files.
-- Don't start it from a mapped network drive. Copy the folders to the PC first.
+  need them. Each tool keeps its own rules: Secure Boot Check, Crash Explainer and
+  Connection Doctor only read or measure. They never change anything.
+- Links (like "Search online" in Crash Explainer) open your browser as a normal user, without admin rights.
+- The toolkit itself saves nothing: no settings, logs or temp files. Windows Setup saves its
+  log on the desktop only once you confirm Start setup.
+- On small screens (like 1366×768 laptops), a page that doesn't fit scrolls.
+- It can be started from a network share or mapped drive.
 
-See [PLAN.md](PLAN.md) for what's built and what's next.
+## Folders
+
+A release (see below) is one folder with everything inside:
+
+```
+KrimzToolkit\
+    Krimz's Toolkit.cmd
+    tools\WindowsSetup\
+    tools\CrashExplainer\
+    tools\ConnectionDoctor\
+    tools\SecureBootCheck\
+```
+
+While developing, the tools are found next to the toolkit folder instead
+(`..\WindowsSetup` and so on). Each tool still works on its own with its own launcher,
+in both places.
+
+## Building a release
+
+```powershell
+powershell -ExecutionPolicy Bypass -File Build-Release.ps1
+```
+
+This puts the toolkit and the four tools into `release\KrimzToolkit\` and
+`release\KrimzToolkit-<version>.zip`. Every project is taken from its **last commit**,
+so commit first. Projects with uncommitted changes are listed as a warning.
+`ui\Theme.xaml` here is the main copy of the shared look. The release always uses it, and
+tools whose own copy differs are listed so you can copy it over there too.
+
+## For testing
+
+`Toolkit.ps1 -DryRun` starts Windows Setup in dry-run mode: it shows what it would do
+without changing anything.
+
+See [PLAN.md](PLAN.md) for how it was built.

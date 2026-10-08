@@ -21,9 +21,21 @@ Add-Type -AssemblyName PresentationFramework
 $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(
     [Security.Principal.WindowsBuiltInRole]::Administrator)
 
+function Get-StartPath {
+    # The admin copy can't see mapped network drive letters (Z:\...), so give it the
+    # network path (\\server\share\...) instead. Local paths are returned unchanged.
+    $path = $PSCommandPath
+    try {
+        $drive = Split-Path -Qualifier $path
+        $disk = Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='$drive'" -ErrorAction Stop
+        if ($disk.DriveType -eq 4 -and $disk.ProviderName) { $path = $disk.ProviderName.TrimEnd('\') + $path.Substring($drive.Length) }
+    } catch { }
+    $path
+}
+
 if (-not $isAdmin) {
     try {
-        $arguments = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-File', "`"$PSCommandPath`"")
+        $arguments = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-File', "`"$(Get-StartPath)`"")
         if ($DryRun) { $arguments += '-DryRun' }
         Start-Process -FilePath 'powershell.exe' -Verb RunAs -ArgumentList $arguments
     } catch {
