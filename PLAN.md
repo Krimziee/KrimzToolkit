@@ -72,7 +72,7 @@ Each tool keeps its own `.cmd` launcher and still works on its own.
   loaded in their own module scope, so loading all four can't overwrite anything.
 - A release step copies the four tools and the toolkit into one folder to share.
 
-## Phase 0 - Shell (done, needs a real-PC test)
+## Phase 0 - Shell (done)
 
 - `Krimz's Toolkit.cmd` starts `Toolkit.ps1`, which asks Windows for admin rights
   and starts again with them. "No" on the prompt shows a message and exits.
@@ -97,13 +97,26 @@ Each tool keeps its own `.cmd` launcher and still works on its own.
 - Known issue: if it's started from a mapped network drive, the admin copy can't see the drive
   letter (same as Windows Setup). The release step (Phase 5) will deal with that.
 
-## Phase 1 - Windows Setup tab
+## Phase 1 - Windows Setup tab (done)
 
-- Turn its window into a page and move its styles to `Theme.xaml`.
-- Decide where the standalone window gets the theme from. Proposed: its own copy of
-  `Theme.xaml`, kept in sync by the release step, so it doesn't need the toolkit.
-- Add the **Start setup confirmation dialog** (toolkit and standalone).
-- Working dot on the tab, and a confirmation when the window is closed during a run.
+- Its window is now a page (`WindowsSetup\ui\Page.xaml`). The standalone window
+  (`ui\MainWindow.xaml`) is an empty frame that shows the same page. In the toolkit,
+  `WindowsSetup\modules\Page.ps1` loads it.
+- **Theme:** Windows Setup has its own copy of `Theme.xaml`, so it doesn't need the
+  toolkit. Its styles moved out of the window into that file. The toolkit's
+  `ui\Theme.xaml` is the main copy, and the release step (Phase 5) will keep the copies the same.
+- **Start setup confirmation** (toolkit and standalone): a dialog in the toolkit's style
+  with the setup and install type, the steps that will run with item counts, the
+  download size, whether the PC restarts, and the restore point note. "Cancel" has focus,
+  so a stray Enter doesn't start anything.
+- Working dot on the tab while setup runs and during the restart countdown. Closing
+  the toolkit during a run asks first (the same question as the standalone window).
+- In the toolkit, the log on the desktop only starts when Start setup is confirmed, so
+  opening the toolkit leaves no log behind. The standalone window logs as before.
+- One version number for both (`$script:SetupVersion` in `Common.ps1`), still 0.9.
+- `Toolkit.ps1 -DryRun` passes dry run to the tools for testing.
+- Tested in dry run: page in the tab, confirmation dialog, run, working dot on and off,
+  Cancel, finish page, and the standalone window in Custom mode.
 
 ## Phase 2 - Secure Boot tab (new UI)
 
