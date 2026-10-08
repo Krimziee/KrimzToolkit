@@ -146,11 +146,21 @@ Each tool keeps its own `.cmd` launcher and still works on its own.
   PC" result (Legacy, MBR, BitLocker without a recovery key, TPM off) to see the fix layout,
   and the text version.
 
-## Phase 3 - Crash Explainer tab
+## Phase 3 - Crash Explainer tab (done)
 
-- Turn it into a page restyled to the Windows Setup layout: period, sort and your PC on the left,
-  explained crashes on the right.
-- Re-run its read-only checklist.
+- Its window is now a page (`CrashExplainer\ui\Page.xaml`) with the shared theme, shown by
+  its standalone window and by the tab (`CrashExplainer\modules\Page.ps1`).
+- **Changed from this plan:** the layout stays as it is (period and sort on top, crash list
+  left, explanation right) instead of moving period, sort and "your PC" to a left column.
+  It already uses the same colors and cards as Windows Setup, Crash Explainer's
+  own plan (its Phase 3) designs its next layout, and "your PC" data only comes with its
+  Phase 2. Restyling it here would have meant doing it twice.
+- Logs are read the first time the tab is opened, with a working dot while reading. Switching
+  tabs doesn't re-read.
+- Links ("Search online") now open through Explorer, so the browser never runs with the
+  toolkit's admin rights.
+- Its read-only checklist passed (scan of the new code; the only hits are allowed).
+- Tested: tab in the toolkit, standalone window (90 days), text version.
 
 ## Phase 4 - Connection Doctor tab
 
