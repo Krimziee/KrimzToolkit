@@ -214,6 +214,9 @@ Each tool keeps its own `.cmd` launcher and still works on its own.
   monitor, so the dot still means "something is running".
 - The monitor is light (a few pings per second), so it doesn't slow down a Windows Setup run.
 - All threads still stop when the toolkit closes. The standalone window doesn't change.
+- While another tab is shown, only the graph drawing waits (it was 38 of the 55 ms the every-second
+  update took); measuring, tiles, Wi-Fi history and events carry on. The graph is redrawn the moment
+  the tab is shown again. Hidden-tab cost: 55 ms -> 10 ms per second.
 - README line "only measures while its tab is open" updated.
 
 **Live log in Windows Setup** (toolkit tab and standalone window, same page)
