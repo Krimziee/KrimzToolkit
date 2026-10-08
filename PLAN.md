@@ -1,0 +1,142 @@
+# Krimz's Toolkit - plan for v0.1
+
+Agreed 2026-10-08. Each phase ends with a test run on a real PC and its own commit.
+
+## Goal
+
+Put the four tools in **one window, with a tab along the top for each tool**:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  Krimz's Toolkit   Windows Setup │ Secure Boot │ Crash Explainer │ Connection Doctor │
+│               ━━━━━━━━━━━━━                                                    │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                     (the selected tool's page)                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+Each tool keeps its own `.cmd` launcher and still works on its own.
+
+## Ground rules
+
+- **Admin rights:** the toolkit asks for admin once, at launch. Windows Setup and
+  Secure Boot need it. The other tools only run with admin because they are in the same process.
+- **Each tool keeps its own rules inside the toolkit:**
+  - Secure Boot Check: strictly read-only (`mbr2gpt /validate` is allowed).
+  - Crash Explainer: read-only, event logs only, its own `PLAN.md` checklist applies.
+    Its "never asks for admin" rule still holds: Crash Explainer itself never
+    asks. It only runs with admin when it's inside the toolkit, and the standalone version stays non-admin.
+  - Connection Doctor: the agreed scope stays the same (live monitor, 3 regions,
+    test buttons, no export or warnings).
+- **The toolkit itself writes nothing.** It saves no settings, logs or remembered tab. It
+  always opens on the first tab.
+- **One look:** the shared colors that Windows Setup and Connection Doctor already use
+  (`#1C1C1C` background, `#272727` / `#2F2F2F` surfaces, `#3A3A3A` lines,
+  `#A6A6A6` muted text, `#4CA6FF` accent).
+
+## Layout
+
+- **Tab bar:** tool names as text tabs. The active tab is white with a blue underline and the others are muted.
+  A tool that is working in the background shows a small blue dot on its tab.
+- **Window size:** one size for all tabs so the window never jumps. It's based on the
+  largest tool (Connection Doctor, 1180×880, min 980×740) plus the tab bar.
+  Test on a 1366×768 laptop. If it doesn't fit, lower the minimum size and let pages scroll.
+- **Windows Setup, Secure Boot and Crash Explainer** use the Windows Setup style:
+  a title and subtitle, a two-column body (info and options on the left, a "what will happen" or
+  results panel on the right), rounded cards, the same buttons, badges, checkboxes and progress bar.
+- **Connection Doctor** keeps its own layout (graph, regions, tests and events), using
+  the shared colors and controls.
+
+## Tab behaviour
+
+- **Connection Doctor:** the live monitor runs **only while its tab is selected**. It
+  stops when you leave the tab and starts again when you come back.
+- **Windows Setup:** pressing **Start setup** first shows a confirmation dialog in the
+  toolkit's style that summarizes what will happen (preset or custom, number of
+  changes, download size). There are two buttons: "Start" (accent) and "Cancel". This also goes into the
+  standalone Windows Setup.
+  While setup runs, you can still switch tabs and the Windows Setup tab shows the
+  working dot. Closing the window while setup is running asks for confirmation first.
+- **Crash Explainer:** reading in the background works as it does today. Leaving the tab doesn't stop it.
+- **Secure Boot:** runs its check the first time the tab is opened, and has a Refresh button.
+
+## How the code fits together
+
+- Each tool stays in its own folder and repo. Each one gets a **page** (`ui\Page.xaml`,
+  a `UserControl`) plus its page code. Its standalone window becomes a thin wrapper
+  around that same page, so there is only one copy of each UI.
+- The toolkit loads the pages from the sibling folders and owns only the window,
+  the tab bar and the shared theme (`ui\Theme.xaml`).
+- **Name clashes:** three tools each have a `Ui.ps1` with overlapping function
+  names. Each tool's functions get a prefix (for example `WS-`, `SB-`, `CE-`, `CD-`) or are
+  loaded in their own module scope, so loading all four can't overwrite anything.
+- A release step copies the four tools and the toolkit into one folder to share.
+
+## Phase 0 - Shell (done, needs a real-PC test)
+
+- `Krimz's Toolkit.cmd` starts `Toolkit.ps1`, which asks Windows for admin rights
+  and starts again with them. "No" on the prompt shows a message and exits.
+- Window with the header tabs (`ui\MainWindow.xaml`) and the shared theme
+  (`ui\Theme.xaml`). The theme is loaded once as the application's resources, so pages use
+  `{StaticResource ...}` without loading it themselves.
+- Tabs come from `tools.psd1`. Ctrl+Tab / Ctrl+Shift+Tab and Ctrl+1..4 switch tabs.
+  The window shrinks to fit small screens.
+- **Name clashes: module scope, not prefixes.** Each tool's page file is
+  loaded into its own private module that exports nothing, so the four tools keep
+  their function and `$script:` variable names. Tested: two pages setting the same
+  `$script:` variable keep separate values, and nothing leaks into the toolkit.
+- **Page contract.** Each tool gets `<tool>\modules\Page.ps1` with
+  `New-ToolPage -Root -Shell` (required, returns the page) and the optional
+  `Enter-ToolPage`, `Exit-ToolPage`, `Test-ToolPageCanClose` and `Close-ToolPage`.
+  `-Shell` gives `Window`, `SetBusy` (the working dot) and `IsAdmin`.
+  Until a tool has a `Page.ps1`, its tab shows a placeholder.
+- Tools are found in `tools\<Folder>` (release copy) or next to the toolkit.
+- Windows functions (sharp text, dark title bar) are declared in memory, as in Crash
+  Explainer, so the toolkit writes nothing.
+- To test: double-click the launcher, click "Yes", switch tabs, close.
+- Known issue: if it's started from a mapped network drive, the admin copy can't see the drive
+  letter (same as Windows Setup). The release step (Phase 5) will deal with that.
+
+## Phase 1 - Windows Setup tab
+
+- Turn its window into a page and move its styles to `Theme.xaml`.
+- Decide where the standalone window gets the theme from. Proposed: its own copy of
+  `Theme.xaml`, kept in sync by the release step, so it doesn't need the toolkit.
+- Add the **Start setup confirmation dialog** (toolkit and standalone).
+- Working dot on the tab, and a confirmation when the window is closed during a run.
+
+## Phase 2 - Secure Boot tab (new UI)
+
+- Split the checks from the console output. The `Test-*` functions return results
+  and the console version and the page both draw from them, so the console script keeps working.
+- Page in the Windows Setup style:
+  - A verdict banner at the top (green / yellow / red) with a one-line summary.
+  - One card per section with a ✓ / ⚠ / ✗ icon: Your PC, Boot mode, Windows disk,
+    Secure Boot, Secure Boot keys, TPM 2.0, Drive encryption (BitLocker).
+  - Problems and warnings listed under the verdict.
+  - "How to get into your BIOS" help for the detected PC brand, plus data-safety notes.
+- Standalone `Check Secure Boot.cmd` opens the new window.
+- Still read-only.
+
+## Phase 3 - Crash Explainer tab
+
+- Turn it into a page restyled to the Windows Setup layout: period, sort and your PC on the left,
+  explained crashes on the right.
+- Re-run its read-only checklist.
+
+## Phase 4 - Connection Doctor tab
+
+- Turn its window into a page and keep its own layout.
+- Start the monitor when the tab is selected and stop it cleanly when you leave the tab (and when the
+  window closes). No leftover background runspaces.
+
+## Phase 5 - Polish and test
+
+- Check every tab on a real PC: tab switching while each tool is busy, closing
+  mid-task, and window size at 1366×768 and at 1080p / 1440p.
+- Make sure all four standalone launchers still work.
+- README for the toolkit.
+
+## Open questions
+
+- Tab order (currently Windows Setup, Secure Boot, Crash Explainer, Connection Doctor).
