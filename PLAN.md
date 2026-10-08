@@ -49,8 +49,8 @@ Each tool keeps its own `.cmd` launcher and still works on its own.
 
 ## Tab behaviour
 
-- **Connection Doctor:** the live monitor runs **only while its tab is selected**. It
-  stops when you leave the tab and starts again when you come back.
+- **Connection Doctor:** the live monitor runs **all the time**, from when the toolkit opens,
+  whichever tab is selected (changed in Phase 6; until then it only ran while its tab was selected).
 - **Windows Setup:** pressing **Start setup** first shows a confirmation dialog in the
   toolkit's style that summarizes what will happen (preset or custom, number of
   changes, download size). There are two buttons: "Start" (accent) and "Cancel". This also goes into the
@@ -203,6 +203,50 @@ Each tool keeps its own `.cmd` launcher and still works on its own.
 - README rewritten: tabs, working dot, admin and read-only rules, folders, release, dry run.
 - Still to do on a real PC: all four standalone launchers and the toolkit launcher from
   the release folder, including the admin prompt (that can't be automated here).
+
+## Phase 6 - Always-on monitor and live log (done)
+
+**Connection Doctor monitor always on**
+- The monitor starts when the toolkit opens and keeps measuring on every tab (replaces Phase 4's
+  pause-while-away). Leaving and coming back no longer resets the verdict.
+- The Pause button still works as before.
+- The working dot on its tab stays for the test buttons only (Route Check and so on), not for the
+  monitor, so the dot still means "something is running".
+- The monitor is light (a few pings per second), so it doesn't slow down a Windows Setup run.
+- All threads still stop when the toolkit closes. The standalone window doesn't change.
+- README line "only measures while its tab is open" updated.
+
+**Live log in Windows Setup** (toolkit tab and standalone window, same page)
+- A **Show details** toggle on the progress page splits the progress card: steps on top, the
+  full log below. Closed by default; the toggle says "Hide details" while it's open.
+- The log shows exactly what goes into the log file, as it happens: timestamps, winget
+  commands, exit codes, winget output, the "would do" lines in a dry run. Small fixed-width
+  font, warnings and failures colored, info lines dimmed.
+- Lines reach the window through the same queue as the progress rows (`Write-Log` also sends
+  them), so no re-reading of the file and no delay. When setup starts, the panel is first filled
+  with what the file already has (the lines written before the window started).
+- The panel is its own row under the progress or finish view (`DetailsPanel` in `Page.xaml`), so it
+  stays open when setup finishes.
+- It follows new lines; scrolling up to read stops that, scrolling back to the bottom starts it again.
+- Still available on the finish page, so you can see why something failed without Notepad.
+- A **Copy** button copies the whole log. The "Show log" (Notepad) button stays.
+- The text (console) version is unchanged.
+
+**Testing**
+- Toolkit: monitor sample count keeps growing while other tabs are selected; Pause survives tab
+  switches; dot only during tests; closing stops all threads.
+- Windows Setup dry run, standalone and in the toolkit: details closed at start, toggle opens and
+  closes it, lines arrive live, scroll-follow behaviour, still there on the finish page, Copy works,
+  log on the desktop deleted after testing.
+
+**Test results**
+- Connection Doctor in the toolkit: measuring from the start while the Windows Setup tab was
+  selected (6 samples in 6 s, no dot), 14 -> 19 samples in 5 s on another tab, no verdict reset on
+  return, Pause kept across switching, dot only during a DNS Test, all threads stopped on close.
+  Standalone window unchanged.
+- Windows Setup dry run, standalone and in the toolkit: the panel had exactly the log file's lines
+  (161), followed new lines, stayed put while scrolled up (61 -> 161 lines arrived), followed again
+  at the bottom, stayed open on the finish page, Copy put all 161 lines on the clipboard.
 
 ## Open questions
 

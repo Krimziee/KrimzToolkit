@@ -27,7 +27,8 @@ again to update.
 Double-click **Krimz's Toolkit.cmd** and click **Yes** on the admin prompt.
 
 A tool that's working in the background (setup running, logs being read, a test running) shows a
-small blue dot on its tab. Connection Doctor only measures while its tab is open.
+small blue dot on its tab. Connection Doctor's live monitor runs from the moment the toolkit opens,
+whichever tab you're on, so its numbers are ready when you look (its own Pause button stops it).
 
 ## Shortcuts
 
