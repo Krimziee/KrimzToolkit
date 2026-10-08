@@ -19,6 +19,7 @@
         Window             the toolkit window (owner for dialogs)
         SetBusy            & $Shell.SetBusy $true / $false   shows or hides the working dot on the tab
         IsAdmin            whether the toolkit runs with admin rights
+        DryRun             Toolkit.ps1 -DryRun: tools that change things only show what they would do
 #>
 
 Add-Type -AssemblyName PresentationFramework, PresentationCore, WindowsBase
@@ -120,7 +121,7 @@ function New-ErrorPage {
 # ------------------------------------------------------------------
 
 function Add-ToolTab {
-    param([string]$Root, [hashtable]$Info, [bool]$IsAdmin)
+    param([string]$Root, [hashtable]$Info, [bool]$IsAdmin, [bool]$DryRun)
 
     $tab = @{
         Info    = $Info
@@ -154,7 +155,7 @@ function Add-ToolTab {
         $tab.Busy = $Busy
         $tab.Dot.Visibility = if ($Busy) { 'Visible' } else { 'Collapsed' }
     }.GetNewClosure()
-    $shellForPage = @{ Window = $script:Shell.Window; SetBusy = $setBusy; IsAdmin = $IsAdmin }
+    $shellForPage = @{ Window = $script:Shell.Window; SetBusy = $setBusy; IsAdmin = $IsAdmin; DryRun = $DryRun }
 
     try {
         # Private module: nothing is exported, so pages can't overwrite each other's functions
@@ -211,7 +212,7 @@ function Select-TabByOffset {
 
 function Show-ToolkitWindow {
     # -NoShow builds the window without opening it (used for automated screenshots)
-    param([string]$Root, [string]$Version, [bool]$IsAdmin, [switch]$NoShow)
+    param([string]$Root, [string]$Version, [bool]$IsAdmin, [bool]$DryRun, [switch]$NoShow)
 
     Enable-DpiAwareness
     Import-Theme $Root
@@ -237,7 +238,7 @@ function Show-ToolkitWindow {
     })
 
     $config = Import-PowerShellDataFile (Join-Path $Root 'tools.psd1')
-    foreach ($info in $config.Tabs) { Add-ToolTab $Root $info $IsAdmin }
+    foreach ($info in $config.Tabs) { Add-ToolTab $Root $info $IsAdmin $DryRun }
 
     # Ctrl+Tab / Ctrl+Shift+Tab and Ctrl+1..9 switch tabs
     $window.Add_PreviewKeyDown({
