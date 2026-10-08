@@ -162,11 +162,25 @@ Each tool keeps its own `.cmd` launcher and still works on its own.
 - Its read-only checklist passed (scan of the new code; the only hits are allowed).
 - Tested: tab in the toolkit, standalone window (90 days), text version.
 
-## Phase 4 - Connection Doctor tab
+## Phase 4 - Connection Doctor tab (done)
 
-- Turn its window into a page and keep its own layout.
-- Start the monitor when the tab is selected and stop it cleanly when you leave the tab (and when the
-  window closes). No leftover background runspaces.
+- Connection Doctor wasn't a git repository. It now is, with its original 0.1.0 as the first commit.
+- Its window is now a page (`ConnectionDoctor\ui\Page.xaml`) with its own layout and styles,
+  shown by its standalone window and by the tab (`ConnectionDoctor\modules\Page.ps1`).
+- **Monitor only while the tab is selected:** it starts the first time the tab is opened, pauses
+  when another tab is selected (no pings, region tests or Wi-Fi reads), and resumes when the
+  tab is selected again. The verdict then starts over ("Measuring..." for 30 s) because the old
+  numbers are stale. The background threads are kept but idle, so switching back is
+  instant, and they all stop when the toolkit closes.
+- The Pause button is separate: a manual pause stays paused across tab switches.
+- A running test carries on in the background (working dot on the tab); its result is there when you
+  come back.
+- The standalone window is unchanged: the monitor starts straight away.
+- Its plan's open question ("standalone or inside Windows Setup") is now answered: both standalone
+  and a toolkit tab.
+- Tested in the toolkit: no measuring before the tab is opened, none while away (sample count
+  stays the same), resumes on return, a manual pause survives switching, DNS Test finishes while away
+  with the dot on and off, all threads stop on close. Also the standalone window.
 
 ## Phase 5 - Polish and test
 
