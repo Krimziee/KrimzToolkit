@@ -10,6 +10,8 @@
     overwriting each other. A page file (<tool>\modules\Page.ps1) provides:
 
         New-ToolPage   -Root <tool folder> -Shell <hashtable>   returns the page (a WPF element)   required
+        Start-ToolPrefetch -Root <tool folder>               starts slow reading in the background  optional
+                                                              (returns a handle; New-ToolPage finds it in $Shell.Prefetch)
         Enter-ToolPage                       the tab was selected                                    optional
         Exit-ToolPage                        another tab was selected                                optional
         Test-ToolPageCanClose                $false keeps the window open (the page asks the user)   optional
@@ -20,6 +22,11 @@
         SetBusy            & $Shell.SetBusy $true / $false   shows or hides the working dot on the tab
         IsAdmin            whether the toolkit runs with admin rights
         DryRun             Toolkit.ps1 -DryRun: tools that change things only show what they would do
+        Prefetch           what Start-ToolPrefetch returned ($null if the page has none)
+
+    The window opens first. Pages are built after it is on screen (the first tab
+    straight away, the others when the computer is idle, or at once when their
+    tab is clicked), so slow tools don't hold up the start.
 #>
 
 Add-Type -AssemblyName PresentationFramework, PresentationCore, WindowsBase
@@ -28,6 +35,8 @@ $script:Shell = @{
     Window = $null
     Tabs   = [System.Collections.Generic.List[object]]::new()   # one entry per tab, see Add-ToolTab
     Active = $null
+    BuildQueue = [System.Collections.Queue]::new()   # tabs whose page is still to be built
+    WindowShown = $false
 }
 
 # ------------------------------------------------------------------
@@ -116,6 +125,14 @@ function New-ErrorPage {
     $panel
 }
 
+function New-LoadingPage {
+    param([string]$Title)
+    $panel = New-Object System.Windows.Controls.StackPanel -Property @{ Margin = '28,26,28,20'; MaxWidth = 640; HorizontalAlignment = 'Left' }
+    $body = New-Object System.Windows.Controls.TextBlock -Property @{ Text = "Opening $Title..."; FontSize = 16; Foreground = '#99A4B0' }
+    [void]$panel.Children.Add($body)
+    $panel
+}
+
 # ------------------------------------------------------------------
 #  Tabs
 # ------------------------------------------------------------------
@@ -129,7 +146,7 @@ function Add-ToolTab {
         Module  = $null
         Page    = $null
         Busy    = $false
-        Entered = $false
+        Built   = $false     # the page is built after the window is shown, see Build-ToolPage
     }
 
     # The tab itself: the name and a small dot shown while the tool is working
@@ -157,6 +174,11 @@ function Add-ToolTab {
     }.GetNewClosure()
     $shellForPage = @{ Window = $script:Shell.Window; SetBusy = $setBusy; IsAdmin = $IsAdmin; DryRun = $DryRun }
 
+    $tab.PageRoot       = $pageRoot
+    $tab.UsePlaceholder = $usePlaceholder
+    $tab.ShellForPage   = $shellForPage
+    $shellForPage.Prefetch = $null
+
     try {
         # Private module: nothing is exported, so pages can't overwrite each other's functions
         $tab.Module = New-Module -Name "KrimzToolkit.$($Info.Key)" -ArgumentList $pageFile -ScriptBlock {
@@ -164,13 +186,11 @@ function Add-ToolTab {
             . $file
             Export-ModuleMember -Function @() -Variable @()
         }
-        $arguments = @{ Root = $pageRoot; Shell = $shellForPage }
-        if ($usePlaceholder) { $arguments.Tool = $Info; $arguments.ToolFolder = $tab.Folder }
-        $tab.Page = Invoke-PageFunction $tab 'New-ToolPage' $arguments
-        if (-not ($tab.Page -is [System.Windows.UIElement])) { throw 'New-ToolPage did not return a page.' }
+        # Slow reading (hardware, network) starts now, in the background, while the window opens
+        try { $shellForPage.Prefetch = Invoke-PageFunction $tab 'Start-ToolPrefetch' @{ Root = $pageRoot } } catch { $shellForPage.Prefetch = $null }
     } catch {
         $tab.Module = $null
-        $tab.Page = New-ErrorPage "$($Info.Title) couldn't open" $_.Exception.Message
+        $tab.LoadError = $_.Exception.Message
     }
 
     # Each page sits in a scroll area that only scrolls when the window is shorter than the
@@ -179,7 +199,7 @@ function Add-ToolTab {
     $frame = New-Object System.Windows.Controls.ScrollViewer -Property @{
         VerticalScrollBarVisibility = 'Auto'; HorizontalScrollBarVisibility = 'Disabled'; Focusable = $false
     }
-    $frame.Content = $tab.Page
+    $frame.Content = New-LoadingPage $Info.Title
     $frame.Add_SizeChanged({
         $page = $this.Content
         $page.Height = [Math]::Max($this.ActualHeight, $page.MinHeight)
@@ -193,6 +213,47 @@ function Add-ToolTab {
     $button.Add_Checked({ Invoke-UiSafely { Select-ToolTab $this.Tag } })
 }
 
+function Build-ToolPage {
+    # Builds the tab's page (once). Until then the tab shows "Opening...".
+    param($Tab)
+    if ($Tab.Built) { return }
+    $Tab.Built = $true
+    $info = $Tab.Info
+    try {
+        if ($Tab.LoadError) { throw $Tab.LoadError }
+        $arguments = @{ Root = $Tab.PageRoot; Shell = $Tab.ShellForPage }
+        if ($Tab.UsePlaceholder) { $arguments.Tool = $info; $arguments.ToolFolder = $Tab.Folder }
+        $Tab.Page = Invoke-PageFunction $Tab 'New-ToolPage' $arguments
+        if (-not ($Tab.Page -is [System.Windows.UIElement])) { throw 'New-ToolPage did not return a page.' }
+    } catch {
+        $Tab.Module = $null
+        $Tab.Page = New-ErrorPage "$($info.Title) couldn't open" $_.Exception.Message
+    }
+    $Tab.Frame.Content = $Tab.Page
+    $Tab.Page.Height = [Math]::Max($Tab.Frame.ActualHeight, $Tab.Page.MinHeight)
+}
+
+function Enter-ToolTab {
+    param($Tab)
+    try { Invoke-PageFunction $Tab 'Enter-ToolPage' } catch { Show-ShellError "$($Tab.Info.Title): $($_.Exception.Message)" }
+}
+
+function Build-NextPage {
+    # Runs when the computer is idle: one page per turn, so clicks and typing stay responsive
+    $queue = $script:Shell.BuildQueue
+    if ($queue.Count -eq 0) { return }
+    $tab = $queue.Dequeue()
+    if (-not $tab.Built) {
+        Invoke-UiSafely {
+            Build-ToolPage $tab
+            if ($script:Shell.Active -eq $tab) { Enter-ToolTab $tab }
+        }
+    }
+    if ($queue.Count -gt 0) {
+        [void]$script:Shell.Window.Dispatcher.BeginInvoke([System.Windows.Threading.DispatcherPriority]::ApplicationIdle, [Action]{ Build-NextPage })
+    }
+}
+
 function Select-ToolTab {
     param([string]$Key)
     $next = $script:Shell.Tabs | Where-Object { $_.Info.Key -eq $Key } | Select-Object -First 1
@@ -202,12 +263,16 @@ function Select-ToolTab {
 
     if ($previous) {
         $previous.Frame.Visibility = 'Collapsed'
-        try { Invoke-PageFunction $previous 'Exit-ToolPage' } catch { Show-ShellError "$($previous.Info.Title): $($_.Exception.Message)" }
+        if ($previous.Built) {
+            try { Invoke-PageFunction $previous 'Exit-ToolPage' } catch { Show-ShellError "$($previous.Info.Title): $($_.Exception.Message)" }
+        }
     }
     $script:Shell.Active = $next
     $next.Frame.Visibility = 'Visible'
     if (-not $next.Button.IsChecked) { $next.Button.IsChecked = $true }
-    try { Invoke-PageFunction $next 'Enter-ToolPage' } catch { Show-ShellError "$($next.Info.Title): $($_.Exception.Message)" }
+    # Clicked before its turn: build it now. The very first tab is built by Build-NextPage once the window is on screen.
+    if (-not $next.Built -and $script:Shell.WindowShown) { Build-ToolPage $next }
+    if ($next.Built) { Enter-ToolTab $next }
 }
 
 function Select-TabByOffset {
@@ -273,20 +338,38 @@ function Show-ToolkitWindow {
         param($sender, $e)
         # Every page may keep the window open (for example while setup runs). It asks the user itself.
         foreach ($tab in $script:Shell.Tabs) {
+            if (-not $tab.Built) { continue }
             $canClose = $true
             try { $answer = Invoke-PageFunction $tab 'Test-ToolPageCanClose'; if ($answer -eq $false) { $canClose = $false } }
             catch { }
             if (-not $canClose) { $e.Cancel = $true; Select-ToolTab $tab.Info.Key; return }
         }
-        if ($script:Shell.Active) { try { Invoke-PageFunction $script:Shell.Active 'Exit-ToolPage' } catch { } }
+        if ($script:Shell.Active -and $script:Shell.Active.Built) { try { Invoke-PageFunction $script:Shell.Active 'Exit-ToolPage' } catch { } }
         foreach ($tab in $script:Shell.Tabs) {
-            try { Invoke-PageFunction $tab 'Close-ToolPage' } catch { }
+            if ($tab.Built) { try { Invoke-PageFunction $tab 'Close-ToolPage' } catch { } }
+            # A prefetch that is still running is told to stop
+            try { $tab.ShellForPage.Prefetch.PowerShell.BeginStop($null, $null) | Out-Null } catch { }
         }
     })
 
     # Always opens on the first tab (nothing is remembered between runs)
+    foreach ($tab in $script:Shell.Tabs) { $script:Shell.BuildQueue.Enqueue($tab) }
     Select-ToolTab $script:Shell.Tabs[0].Info.Key
 
-    if ($NoShow) { return $window }
+    if ($NoShow) {
+        # Automated screenshots want finished pages straight away
+        $script:Shell.WindowShown = $true
+        foreach ($tab in $script:Shell.Tabs) { Build-ToolPage $tab }
+        Enter-ToolTab $script:Shell.Active
+        return $window
+    }
+
+    # The window opens first, with "Opening..." on the first tab. Once it is on screen the first
+    # page is built, then the others one by one while the computer is idle.
+    $window.Add_ContentRendered({
+        if ($script:Shell.WindowShown) { return }
+        $script:Shell.WindowShown = $true
+        [void]$script:Shell.Window.Dispatcher.BeginInvoke([System.Windows.Threading.DispatcherPriority]::Background, [Action]{ Build-NextPage })
+    })
     [void]$window.ShowDialog()
 }
