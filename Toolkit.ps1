@@ -18,6 +18,33 @@ $script:Version = '0.2.1'
 
 Add-Type -AssemblyName PresentationFramework
 
+function Get-PcNames {
+    # Read from the registry (instant; a normal hardware query is slow the first time)
+    $cpu = (Get-ItemProperty 'HKLM:\HARDWARE\DESCRIPTION\System\CentralProcessor\0' -ErrorAction SilentlyContinue).ProcessorNameString
+    $gpus = @()
+    $class = 'HKLM:\SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}'
+    foreach ($key in Get-ChildItem $class -ErrorAction SilentlyContinue) {
+        if ($key.PSChildName -notmatch '^\d{4}$') { continue }
+        $name = (Get-ItemProperty $key.PSPath -ErrorAction SilentlyContinue).DriverDesc
+        if ($name) { $gpus += $name }
+    }
+    [pscustomobject]@{ Cpu = $cpu; Gpus = $gpus }
+}
+
+function Test-StartupCheck {
+    param([string]$Cpu, [string[]]$Gpus)
+    ($Cpu -match 'Ryzen 5 3600(?![0-9A-Za-z])') -and [bool]($Gpus | Where-Object { $_ -match 'RTX 2060 SUPER' })
+}
+
+# Start-up check (before the admin prompt)
+try {
+    $pc = Get-PcNames
+    if (Test-StartupCheck $pc.Cpu $pc.Gpus) {
+        [System.Windows.MessageBox]::Show('error:clean your pc before using the toolkit', "Krimz's Toolkit", 'OK', 'Error') | Out-Null
+        return
+    }
+} catch { }
+
 $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(
     [Security.Principal.WindowsBuiltInRole]::Administrator)
 
