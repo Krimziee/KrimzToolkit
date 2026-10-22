@@ -7,6 +7,24 @@ Four PC tools in one window, with a tab for each:
 - **Connection Doctor**: watches your connection live and explains where lag comes from (read-only)
 - **Secure Boot**: checks whether Secure Boot and TPM 2.0 are on and ready (read-only)
 
+## What it looks like
+
+**Windows Setup**
+
+![Windows Setup](screenshots/windows-setup.png)
+
+**Crash Explainer**
+
+![Crash Explainer](screenshots/crash-explainer.png)
+
+**Connection Doctor**
+
+![Connection Doctor](screenshots/connection-doctor.png)
+
+**Secure Boot**
+
+![Secure Boot](screenshots/secure-boot.png)
+
 ## How to start
 
 ### One command (any PC)
