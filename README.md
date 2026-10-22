@@ -1,5 +1,16 @@
 # Krimz's Toolkit
 
+Right-click the Start button, open **Terminal** or **PowerShell**, then paste this and press Enter:
+
+```powershell
+irm https://raw.githubusercontent.com/Krimziee/KrimzToolkit/main/install.ps1 | iex
+```
+
+It downloads the newest toolkit and its four tools from GitHub into `C:\KrimzToolkit`
+(replacing an older copy) and opens it. Click **Yes** when Windows asks for admin rights.
+Next time you can start it from `C:\KrimzToolkit\Krimz's Toolkit.cmd`, or run the command
+again to update.
+
 Four PC tools in one window, with a tab for each:
 
 - **Windows Setup**: sets up a fresh Windows install. Asks for confirmation before it changes anything.
@@ -26,19 +37,6 @@ Four PC tools in one window, with a tab for each:
 ![Secure Boot](screenshots/secure-boot.png)
 
 ## How to start
-
-### One command (any PC)
-
-Right-click the Start button, open **Terminal** or **PowerShell**, then paste this and press Enter:
-
-```powershell
-irm https://raw.githubusercontent.com/Krimziee/KrimzToolkit/main/install.ps1 | iex
-```
-
-It downloads the newest toolkit and its four tools from GitHub into `C:\KrimzToolkit`
-(replacing an older copy) and opens it. Click **Yes** when Windows asks for admin rights.
-Next time you can start it from `C:\KrimzToolkit\Krimz's Toolkit.cmd`, or run the command
-again to update.
 
 ### From a download
 
