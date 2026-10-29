@@ -27,6 +27,8 @@ function Get-StartPath {
     $path = $PSCommandPath
     try {
         $drive = Split-Path -Qualifier $path
+        # A local drive needs nothing more, and this check is instant (the query below isn't)
+        if ([System.IO.DriveInfo]::new($drive).DriveType -ne 'Network') { return $path }
         $disk = Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='$drive'" -ErrorAction Stop
         if ($disk.DriveType -eq 4 -and $disk.ProviderName) { $path = $disk.ProviderName.TrimEnd('\') + $path.Substring($drive.Length) }
     } catch { }

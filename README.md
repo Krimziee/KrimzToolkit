@@ -89,7 +89,17 @@ This puts the toolkit and the four tools into `release\KrimzToolkit\` and
 `release\KrimzToolkit-<version>.zip`. Every project is taken from its **last commit**,
 so commit first. Projects with uncommitted changes are listed as a warning.
 `ui\Theme.xaml` here is the main copy of the shared look. The release always uses it, and
-tools whose own copy differs are listed so you can copy it over there too.
+tools whose own copy differs are listed.
+
+## Changing the look
+
+Edit `ui\Theme.xaml` here only, then copy it to every tool with:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File Sync-Theme.ps1
+```
+
+`-Check` only lists the copies that differ. Commit the change in each tool afterwards.
 
 ## For testing
 

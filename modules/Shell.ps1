@@ -35,8 +35,8 @@ $script:Shell = @{
     Window = $null
     Tabs   = [System.Collections.Generic.List[object]]::new()   # one entry per tab, see Add-ToolTab
     Active = $null
-    BuildQueue = [System.Collections.Queue]::new()   # tabs whose page is still to be built
     WindowShown = $false
+    BuildTimer  = $null   # retries Build-NextPage while a page's background reading is still running
 }
 
 # ------------------------------------------------------------------
@@ -238,19 +238,40 @@ function Enter-ToolTab {
     try { Invoke-PageFunction $Tab 'Enter-ToolPage' } catch { Show-ShellError "$($Tab.Info.Title): $($_.Exception.Message)" }
 }
 
+function Test-PageReady {
+    # A page whose background reading (Start-ToolPrefetch) is still running waits for it, so
+    # the window keeps responding instead of freezing while New-ToolPage waits for the result
+    param($Tab)
+    $prefetch = $Tab.ShellForPage.Prefetch
+    if (-not $prefetch -or -not $prefetch.Handle) { return $true }
+    try { [bool]$prefetch.Handle.IsCompleted } catch { $true }
+}
+
 function Build-NextPage {
-    # Runs when the computer is idle: one page per turn, so clicks and typing stay responsive
-    $queue = $script:Shell.BuildQueue
-    if ($queue.Count -eq 0) { return }
-    $tab = $queue.Dequeue()
-    if (-not $tab.Built) {
+    # Runs when the computer is idle: one page per turn, so clicks and typing stay responsive.
+    # The selected tab goes first once it is ready; while it waits, other ready pages are built.
+    $pending = @($script:Shell.Tabs | Where-Object { -not $_.Built })
+    if (-not $pending) { return }
+    $active = $script:Shell.Active
+    $tab = if ($active -and -not $active.Built -and (Test-PageReady $active)) { $active }
+           else { $pending | Where-Object { Test-PageReady $_ } | Select-Object -First 1 }
+    if ($tab) {
         Invoke-UiSafely {
             Build-ToolPage $tab
             if ($script:Shell.Active -eq $tab) { Enter-ToolTab $tab }
         }
     }
-    if ($queue.Count -gt 0) {
+    if (-not @($script:Shell.Tabs | Where-Object { -not $_.Built })) { return }
+    if ($tab) {
         [void]$script:Shell.Window.Dispatcher.BeginInvoke([System.Windows.Threading.DispatcherPriority]::ApplicationIdle, [Action]{ Build-NextPage })
+    } else {
+        # Every remaining page is still waiting for its background reading: look again shortly
+        if (-not $script:Shell.BuildTimer) {
+            $script:Shell.BuildTimer = New-Object System.Windows.Threading.DispatcherTimer
+            $script:Shell.BuildTimer.Interval = [TimeSpan]::FromMilliseconds(50)
+            $script:Shell.BuildTimer.Add_Tick({ $script:Shell.BuildTimer.Stop(); Build-NextPage })
+        }
+        $script:Shell.BuildTimer.Start()
     }
 }
 
@@ -270,8 +291,10 @@ function Select-ToolTab {
     $script:Shell.Active = $next
     $next.Frame.Visibility = 'Visible'
     if (-not $next.Button.IsChecked) { $next.Button.IsChecked = $true }
-    # Clicked before its turn: build it now. The very first tab is built by Build-NextPage once the window is on screen.
-    if (-not $next.Built -and $script:Shell.WindowShown) { Build-ToolPage $next }
+    # Clicked before its turn: build it now (or, while its background reading still runs, as soon as
+    # that's done - Build-NextPage takes the selected tab first). The very first tab is built by
+    # Build-NextPage once the window is on screen.
+    if (-not $next.Built -and $script:Shell.WindowShown -and (Test-PageReady $next)) { Build-ToolPage $next }
     if ($next.Built) { Enter-ToolTab $next }
 }
 
@@ -353,7 +376,6 @@ function Show-ToolkitWindow {
     })
 
     # Always opens on the first tab (nothing is remembered between runs)
-    foreach ($tab in $script:Shell.Tabs) { $script:Shell.BuildQueue.Enqueue($tab) }
     Select-ToolTab $script:Shell.Tabs[0].Info.Key
 
     if ($NoShow) {
