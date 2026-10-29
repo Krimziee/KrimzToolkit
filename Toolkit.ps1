@@ -14,7 +14,7 @@
 param([switch]$DryRun)
 
 $ErrorActionPreference = 'Stop'
-$script:Version = '0.2.1'
+$script:Version = '0.2.2'
 
 Add-Type -AssemblyName PresentationFramework
 
